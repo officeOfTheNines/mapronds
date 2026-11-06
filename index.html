@@ -3,149 +3,526 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#0B2217"/>
   <title>The Nines — Restaurant Map</title>
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/favicon-180.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet"/>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --ink: #1a1a18;
-      --cream: #f5f0e8;
-      --gold: #b8975a;
-      --gold-light: #d4b483;
-      --muted: #6b6458;
+      --bg: #0B2217;          /* page, header and side panel */
+      --map: #0E2A1E;         /* map area */
+      --line: #24493A;        /* borders and dividers */
+      --line-ctl: #2F5A48;    /* inactive control borders */
+      --ink: #EDE8DA;         /* ivory text */
+      --muted: #A9B8AE;       /* muted text */
+      --brass: #C8A35F;       /* accent: active buttons, bars, focus */
+      --on-accent: #0B2217;   /* text on brass and on pins */
+      --gold: #D9B45F;
+      --silver: #C4CACB;
+      --bronze: #C0814A;
+      --serif: 'Cormorant Garamond', Georgia, serif;
+      --sans: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
     }
-    body { font-family: 'Montserrat', sans-serif; background: var(--ink); color: var(--cream); height: 100vh; display: flex; flex-direction: column; }
 
-    .controls { background: var(--ink); padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid rgba(184,151,90,0.2); }
-    .controls-label { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; white-space: nowrap; }
-    .toggle-btn { font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.5rem 1.1rem; border: 1px solid rgba(184,151,90,0.3); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-    .toggle-btn:hover { border-color: var(--gold); color: var(--gold-light); }
-    .toggle-btn.active { background: var(--gold); color: var(--ink); border-color: var(--gold); }
-    .season-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .sep { width: 1px; height: 24px; background: rgba(184,151,90,0.2); margin: 0 0.25rem; flex-shrink: 0; }
-    .profile-wrap { position: relative; display: flex; align-items: center; }
-    .controls-label-btn { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; white-space: nowrap; cursor: pointer; border-bottom: 1px dashed rgba(184,151,90,0.4); transition: color 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Montserrat', sans-serif; padding: 0; }
-    .controls-label-btn:hover { color: var(--gold-light); }
-    .profile-tooltip { display: none; position: absolute; top: calc(100% + 10px); left: 0; background: #1e1e1c; border: 1px solid rgba(184,151,90,0.3); padding: 0.9rem 1rem; width: 270px; z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-    .profile-tooltip.visible { display: block; }
-    .profile-tooltip::before { content: ''; position: absolute; top: -6px; left: 16px; width: 10px; height: 10px; background: #1e1e1c; border-left: 1px solid rgba(184,151,90,0.3); border-top: 1px solid rgba(184,151,90,0.3); transform: rotate(45deg); }
-    .tooltip-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.67rem; line-height: 1.5; }
-    .tooltip-row:last-child { margin-bottom: 0; }
-    .tooltip-key { color: var(--gold-light); font-weight: 500; white-space: nowrap; min-width: 85px; }
-    .tooltip-val { color: var(--cream); opacity: 0.6; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); }
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font: inherit; color: inherit; }
+    :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
-    .legend { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; flex-wrap: wrap; }
-    .legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
-
-    #map { flex: 1; }
-
-    .pin-label { background: transparent; border: none; box-shadow: none; }
-    .pin-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-    .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 0 6px rgba(0,0,0,0.5); }
-    .pin-score { font-family: 'Montserrat', sans-serif; font-size: 9px; font-weight: 500; color: var(--cream); background: rgba(26,26,24,0.85); padding: 1px 3px; border-radius: 2px; white-space: nowrap; }
-    .pin-score.tbc { color: var(--muted); font-style: italic; }
-
-    .leaflet-popup-content-wrapper { background: #1e1e1c; border: 1px solid rgba(184,151,90,0.3); border-radius: 2px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); padding: 0; }
-    .leaflet-popup-content { margin: 0; min-width: 240px; }
-    .leaflet-popup-tip { background: #1e1e1c; }
-    .leaflet-popup-close-button { color: var(--muted) !important; top: 8px !important; right: 8px !important; }
-
-    .popup-inner { padding: 1rem 1.1rem; }
-    .popup-season { font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
-    .popup-name { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 600; color: var(--cream); margin-bottom: 0.1rem; line-height: 1.2; }
-    .popup-address { font-size: 0.6rem; color: var(--muted); margin-bottom: 0.15rem; }
-    .popup-brigadiers { font-size: 0.65rem; color: var(--gold-light); margin-bottom: 0.75rem; font-style: italic; }
-    .popup-divider { height: 1px; background: rgba(184,151,90,0.2); margin-bottom: 0.75rem; }
-
-    /* Featured total score — top of ratings */
-    .popup-featured {
+    /* ---------- Header ---------- */
+    .site-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 0.75rem;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid rgba(184,151,90,0.25);
-      background: rgba(184,151,90,0.06);
+      gap: 24px;
+      padding: 12px 24px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
     }
-    .popup-featured-label {
-      font-size: 0.6rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--gold-light);
+    .brand { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+    .brand img { width: 52px; height: 52px; display: block; }
+    .brand h1 { font-family: var(--serif); font-weight: 600; font-size: 1.75rem; line-height: 1; letter-spacing: 0.01em; }
+    .brand p { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-left: auto;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
-    .popup-featured-value {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.6rem;
+    .group { display: flex; align-items: center; gap: 6px; }
+    .group + .group { padding-left: 20px; border-left: 1px solid var(--line); }
+    .group-label, .group-label-btn {
+      font-size: 0.72rem;
       font-weight: 600;
-      color: var(--gold);
-      line-height: 1;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+    .group-label-btn {
+      min-height: 44px;
+      padding: 0 6px;
+      background: none;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: underline dotted var(--line-ctl);
+      text-underline-offset: 4px;
+    }
+    .group-label-btn:hover { color: var(--ink); }
+
+    .toggle-btn {
+      min-height: 44px;
+      padding: 0 16px;
+      border: 1px solid var(--line-ctl);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--ink);
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .toggle-btn:hover { border-color: var(--brass); }
+    .toggle-btn.active { background: var(--brass); border-color: var(--brass); color: var(--on-accent); font-weight: 600; }
+    .toggle-btn:focus-visible { outline-offset: 3px; }
+
+    /* Profile help tooltip (fixed so it is never clipped by the scrolling controls on phones) */
+    .profile-tooltip {
+      display: none;
+      position: fixed;
+      z-index: 9000;
+      width: 290px;
+      max-width: calc(100vw - 32px);
+      padding: 14px 16px;
+      background: var(--bg);
+      border: 1px solid var(--line-ctl);
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+    .profile-tooltip.visible { display: block; }
+    .tooltip-row { display: flex; gap: 10px; font-size: 0.8125rem; line-height: 1.45; margin-bottom: 8px; }
+    .tooltip-row:last-child { margin-bottom: 0; }
+    .tooltip-key { color: var(--brass); font-weight: 600; min-width: 86px; }
+    .tooltip-val { color: var(--muted); }
+
+    /* ---------- Layout ---------- */
+    .layout {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 400px;
+    }
+    .map-wrap { position: relative; min-height: 0; background: var(--map); }
+    #map { position: absolute; inset: 0; background: var(--map); }
+
+    .panel {
+      background: var(--bg);
+      border-left: 1px solid var(--line);
+      overflow-y: auto;
+      padding: 28px 28px 32px;
     }
 
-    .popup-ratings { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
-    .popup-rating-row { display: flex; align-items: center; font-size: 0.65rem; }
-    .popup-rating-label { letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); min-width: 70px; }
-    .popup-rating-bar-wrap { flex: 1; height: 3px; background: rgba(255,255,255,0.07); margin: 0 0.6rem; border-radius: 2px; }
-    .popup-rating-bar { height: 100%; background: var(--gold); border-radius: 2px; }
-    .popup-rating-value { font-weight: 500; color: var(--cream); min-width: 32px; text-align: right; }
+    /* ---------- Map chrome ---------- */
+    .legend {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 700;
+      display: flex;
+      gap: 14px;
+      padding: 8px 12px;
+      background: rgba(11, 34, 23, 0.9);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      pointer-events: none;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    .popup-menu-btn { display: block; text-align: center; margin-top: 0.5rem; padding: 0.5rem; border: 1px solid rgba(184,151,90,0.3); color: var(--gold-light); font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; cursor: pointer; background: transparent; width: 100%; transition: background 0.2s; font-family: 'Montserrat', sans-serif; }
-    .popup-menu-btn:hover { background: rgba(184,151,90,0.15); }
-    .popup-no-menu { color: var(--muted); font-size: 0.6rem; text-align: center; margin-top: 0.5rem; font-style: italic; }
-    .popup-tbc { color: var(--muted); font-size: 0.75rem; text-align: center; padding: 0.5rem 0; font-style: italic; }
+    .leaflet-container { background: var(--map); font-family: var(--sans); }
+    .leaflet-bar { border: 1px solid var(--line-ctl) !important; border-radius: 8px !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important; overflow: hidden; }
+    .leaflet-bar a,
+    .leaflet-touch .leaflet-bar a {
+      width: 44px; height: 44px; line-height: 44px;
+      background: var(--bg); color: var(--ink);
+      border-bottom: 1px solid var(--line);
+      font-size: 20px;
+    }
+    .leaflet-bar a:last-child { border-bottom: 0; }
+    .leaflet-bar a:hover { background: var(--map); color: var(--brass); }
+    .leaflet-bar a.leaflet-disabled { background: var(--bg); color: var(--line-ctl); }
+    .leaflet-bar a:focus-visible { outline-offset: -3px; }
+    .leaflet-control-attribution { background: rgba(11, 34, 23, 0.85) !important; color: var(--muted); }
+    .leaflet-control-attribution a { color: var(--brass); }
 
-    /* Menu overlay */
-    #menu-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,8,0.92); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; }
+    /* Pins: a 28px visible circle (about the size of a Google Maps place icon)
+       inside a transparent 44px tap target */
+    .pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .pin-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid var(--map);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--on-accent);
+      font-family: var(--sans);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+      transition: box-shadow 0.15s;
+    }
+    .pin--gold .pin-dot { background: var(--gold); }
+    .pin--silver .pin-dot { background: var(--silver); }
+    .pin--bronze .pin-dot { background: var(--bronze); }
+    .pin--tbc .pin-dot { background: var(--line); color: var(--muted); font-size: 0.625rem; font-weight: 500; font-style: italic; }
+    .pin.is-selected .pin-dot { box-shadow: 0 0 0 3px var(--ink), 0 2px 8px rgba(0, 0, 0, 0.55); }
+    .pin:focus-visible { outline: none; }
+    .pin:focus-visible .pin-dot { outline: 2px solid var(--brass); outline-offset: 5px; }
+
+    /* ---------- Panel: selected restaurant ---------- */
+    .eyebrow {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .detail-empty { color: var(--muted); font-size: 0.9375rem; line-height: 1.55; padding: 4px 0 8px; }
+    .detail-empty strong { display: block; font-family: var(--serif); font-weight: 600; font-size: 1.6rem; color: var(--ink); margin-bottom: 6px; }
+
+    .detail-name { font-family: var(--serif); font-weight: 600; font-size: 2.1rem; line-height: 1.1; margin: 8px 0 8px; }
+    .detail-address { color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+    .detail-brigadiers { color: var(--ink); font-size: 0.875rem; font-weight: 500; margin-top: 6px; }
+
+    .score-block {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 22px 0 18px;
+      padding: 18px 0 16px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .score-big { font-family: var(--serif); font-weight: 600; font-size: 3.75rem; line-height: 0.9; }
+    .score-big.t-gold { color: var(--gold); }
+    .score-big.t-silver { color: var(--silver); }
+    .score-big.t-bronze { color: var(--bronze); }
+    .score-big.t-tbc { color: var(--muted); }
+
+    .bars { display: flex; flex-direction: column; gap: 12px; }
+    .bar-row { display: grid; grid-template-columns: 92px 1fr 44px; align-items: center; gap: 12px; font-size: 0.875rem; }
+    .bar-label { color: var(--muted); }
+    .bar-track { height: 6px; background: var(--line); border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--brass); border-radius: 999px; }
+    .bar-value { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .ratings-tbc { color: var(--muted); font-style: italic; font-size: 0.9375rem; padding: 18px 0; margin: 22px 0 0; border-top: 1px solid var(--line); }
+
+    .menu-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; min-height: 44px; margin-top: 22px;
+      border: 1px solid var(--gold); border-radius: 999px;
+      background: var(--gold); color: var(--on-accent);
+      font-size: 0.875rem; font-weight: 600; cursor: pointer;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .menu-btn:hover { border-color: var(--brass); background: var(--brass); }
+
+    /* Phone-only pieces (hidden on bigger screens) */
+    .picker-btn, .sheet-bar { display: none; }
+    .no-menu { color: var(--muted); font-size: 0.8125rem; font-style: italic; text-align: center; margin-top: 22px; }
+
+    /* ---------- Panel: top five ---------- */
+    .top-five { margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line); }
+    .top-five-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+    .top-five-title h2 { font-family: var(--serif); font-weight: 600; font-size: 1.4rem; }
+    .top-five ol { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .top-item {
+      display: grid;
+      grid-template-columns: 24px 1fr 44px;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 56px;
+      padding: 6px 8px 6px 4px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+    .top-item:hover { background: var(--map); }
+    .top-item[aria-current="true"] { background: var(--map); border-color: var(--line-ctl); }
+    .top-rank { font-family: var(--serif); font-weight: 600; font-size: 1.25rem; color: var(--muted); text-align: center; }
+    .top-name { font-family: var(--serif); font-weight: 600; font-size: 1.2rem; line-height: 1.15; }
+    .top-meta { display: block; font-family: var(--sans); font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-top: 2px; }
+    .top-score {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--on-accent); font-size: 0.8125rem; font-weight: 600;
+    }
+    .top-score.t-gold { background: var(--gold); }
+    .top-score.t-silver { background: var(--silver); }
+    .top-score.t-bronze { background: var(--bronze); }
+    .top-empty { color: var(--muted); font-size: 0.875rem; font-style: italic; padding: 8px 0; }
+
+    /* ---------- Menu overlay ---------- */
+    #menu-overlay { display: none; position: fixed; inset: 0; background: rgba(6, 20, 13, 0.94); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
     #menu-overlay.visible { display: flex; }
-    .overlay-header { width: 100%; max-width: 860px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
-    .overlay-title { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--cream); opacity: 0.8; }
-    .overlay-close { background: transparent; border: 1px solid rgba(184,151,90,0.3); color: var(--gold-light); font-family: 'Montserrat', sans-serif; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.4rem 1rem; cursor: pointer; transition: background 0.2s; }
-    .overlay-close:hover { background: rgba(184,151,90,0.15); }
-    #menu-frame { width: 100%; max-width: 860px; flex: 1; max-height: 80vh; border: 1px solid rgba(184,151,90,0.2); background: #fff; }
+    .overlay-header { width: 100%; max-width: 860px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+    .overlay-title { font-family: var(--serif); font-weight: 600; font-size: 1.5rem; color: var(--ink); }
+    .overlay-close {
+      min-height: 44px; padding: 0 18px;
+      background: transparent; border: 1px solid var(--line-ctl); border-radius: 999px;
+      color: var(--ink); font-size: 0.875rem; font-weight: 500; cursor: pointer; flex-shrink: 0;
+    }
+    .overlay-close:hover { border-color: var(--brass); }
+    #menu-frame { width: 100%; max-width: 860px; flex: 1; max-height: 80vh; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+
+    /* ---------- Phone ---------- */
+    @media (max-width: 700px) {
+      body { overflow: hidden; }
+
+      /* One-line header: logo, name, and the picked profile/season */
+      .site-header {
+        position: relative;
+        z-index: 1500;
+        flex-wrap: nowrap;
+        gap: 10px;
+        padding: 6px 12px;
+      }
+      .brand { gap: 10px; min-width: 0; }
+      .brand img { width: 32px; height: 32px; }
+      .brand h1 { font-size: 1.3rem; white-space: nowrap; }
+      .brand p { display: none; }
+      .picker-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        min-height: 44px;
+        padding: 0 14px 0 16px;
+        border: 1px solid var(--brass);
+        border-radius: 999px;
+        background: var(--brass);
+        color: var(--on-accent);
+        font-size: 0.875rem;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .picker-caret { font-size: 0.7rem; transition: transform 0.2s; }
+      .site-header.picker-open .picker-caret { transform: rotate(180deg); }
+
+      /* All buttons live in a dropdown under the header */
+      .controls {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        margin: 0;
+        padding: 12px 12px 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--line);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+      }
+      .site-header.picker-open .controls { display: flex; }
+      .group { flex-wrap: wrap; }
+      .group + .group { padding-left: 0; border-left: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+      .group-label { min-width: 84px; }
+
+      /* Full-screen map */
+      .layout { display: block; position: relative; overflow: hidden; }
+      .map-wrap { position: absolute; inset: 0; }
+      .legend { left: 8px; bottom: 8px; gap: 10px; padding: 6px 10px; font-size: 0.6875rem; }
+
+      /* Bottom sheet: hidden until a pin is tapped, then peeks; slide up to open */
+      .panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: calc(100% - 16px);
+        z-index: 1100;
+        padding: 0 16px calc(28px + env(safe-area-inset-bottom));
+        border-left: 0;
+        border-top: 1px solid var(--line-ctl);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+        overflow: hidden;
+        transform: translateY(100%);
+        visibility: hidden;
+        transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 0.28s;
+        overscroll-behavior: contain;
+      }
+      .panel.sheet-peek {
+        transform: translateY(calc(100% - var(--peek, 220px)));
+        visibility: visible;
+        transition-delay: 0s;
+        touch-action: none;
+      }
+      .panel.sheet-open {
+        transform: translateY(0);
+        visibility: visible;
+        transition-delay: 0s;
+        overflow-y: auto;
+      }
+      .panel.dragging { transition: none; }
+
+      .sheet-bar {
+        display: flex;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        margin: 0 -16px 4px;
+        padding: 0 4px 0 60px;
+        background: var(--bg);
+        touch-action: none;
+      }
+      .sheet-grab {
+        flex: 1;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: 0;
+        border-radius: 8px;
+        cursor: grab;
+      }
+      .sheet-grab span { width: 40px; height: 5px; border-radius: 999px; background: var(--line-ctl); }
+      .sheet-close {
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+        margin-left: 12px;
+        background: none;
+        border: 0;
+        border-radius: 50%;
+        color: var(--muted);
+        font-size: 1.1rem;
+        cursor: pointer;
+      }
+      .sheet-close:hover { color: var(--ink); }
+
+      .detail-name { font-size: 1.75rem; margin: 6px 0; }
+      .score-block { margin: 14px 0 16px; padding: 10px 0 12px; }
+      .score-big { font-size: 2.75rem; }
+      .ratings-tbc { margin-top: 14px; padding: 14px 0; }
+      #menu-overlay { padding: 16px; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="controls">
-    <div class="profile-wrap">
-      <button class="controls-label-btn" id="profileHelpBtn">Profile ⓘ</button>
-      <div class="profile-tooltip" id="profileTooltip">
-        <div class="tooltip-row"><span class="tooltip-key">🍴 Food+</span><span class="tooltip-val">Gives double weight to food in the average rating</span></div>
-        <div class="tooltip-row"><span class="tooltip-key">🍷 Wine+</span><span class="tooltip-val">Gives double weight to wine in the average rating</span></div>
-        <div class="tooltip-row"><span class="tooltip-key">🎭 Atmo+</span><span class="tooltip-val">Gives double weight to atmosphere in the average rating</span></div>
-        <div class="tooltip-row"><span class="tooltip-key">⚖️ Neutral</span><span class="tooltip-val">Treats food, wine and atmosphere equally</span></div>
+  <header class="site-header">
+    <div class="brand">
+      <img src="favicon.png" width="52" height="52" alt="">
+      <div>
+        <h1>The Nines</h1>
+        <p>Restaurant map</p>
       </div>
     </div>
-    <button class="toggle-btn active" data-mode="total_food" data-label="Food+">🍴 Food+</button>
-    <button class="toggle-btn" data-mode="total_wine" data-label="Wine+">🍷 Wine+</button>
-    <button class="toggle-btn" data-mode="total_atmosphere" data-label="Atmosphere+">🎭 Atmo+</button>
-    <button class="toggle-btn" data-mode="total_neutral" data-label="Neutral">⚖️ Neutral</button>
-    <div class="sep"></div>
-    <span class="controls-label">Season</span>
-    <div class="season-buttons" id="seasonButtons">
-      <button class="toggle-btn active" data-season="All">All</button>
-      <!-- One button per unique value in the sheet's "season" column, added on load -->
-    </div>
-    <div class="sep"></div>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#b8975a;"></div> ≥ 15</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#9aa0a6;"></div> 13–15</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#cd7f32;"></div> &lt; 13</div>
-    </div>
+
+    <button class="picker-btn" id="pickerBtn" type="button" aria-expanded="false" aria-controls="mapControls">
+      <span id="pickerLabel">Overall · All</span><span class="picker-caret" aria-hidden="true">▼</span>
+    </button>
+
+    <nav class="controls" id="mapControls" aria-label="Map controls">
+      <div class="group" role="group" aria-label="Scoring profile">
+        <button class="group-label-btn" id="profileHelpBtn" aria-expanded="false" aria-controls="profileTooltip">Profile ⓘ</button>
+        <button class="toggle-btn active" aria-pressed="true" data-mode="overall" data-label="Overall">Overall</button>
+        <button class="toggle-btn" aria-pressed="false" data-mode="plate" data-label="Food">Food</button>
+        <button class="toggle-btn" aria-pressed="false" data-mode="bottles" data-label="Wine">Wine</button>
+        <button class="toggle-btn" aria-pressed="false" data-mode="atmosphere" data-label="Ambience">Ambience</button>
+      </div>
+      <div class="group" role="group" aria-label="Season">
+        <span class="group-label">Season</span>
+        <button class="toggle-btn active" aria-pressed="true" data-season="All">All</button>
+        <!-- One button per unique value in the sheet's "season" column, added on load -->
+      </div>
+    </nav>
+  </header>
+
+  <div class="profile-tooltip" id="profileTooltip" role="tooltip">
+    <div class="tooltip-row"><span class="tooltip-key">Overall</span><span class="tooltip-val">Food counts double: (2 × plate + bottles + atmosphere) ÷ 4</span></div>
+    <div class="tooltip-row"><span class="tooltip-key">Food</span><span class="tooltip-val">The plate score on its own</span></div>
+    <div class="tooltip-row"><span class="tooltip-key">Wine</span><span class="tooltip-val">The bottles score on its own</span></div>
+    <div class="tooltip-row"><span class="tooltip-key">Ambience</span><span class="tooltip-val">The atmosphere score on its own</span></div>
   </div>
 
-  <div id="map"></div>
+  <main class="layout">
+    <div class="map-wrap">
+      <div id="map" aria-label="Restaurant map"></div>
+      <div class="legend" aria-hidden="true">
+        <div class="legend-item"><span class="legend-dot" style="background:var(--gold)"></span>15+</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--silver)"></span>13–15</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--bronze)"></span>Under 13</div>
+      </div>
+    </div>
 
-  <div id="menu-overlay">
+    <aside class="panel" id="panel" aria-label="Selected restaurant">
+      <div class="sheet-bar">
+        <button class="sheet-grab" id="sheetGrab" type="button" aria-label="Show more details"><span></span></button>
+        <button class="sheet-close" id="sheetClose" type="button" aria-label="Close">✕</button>
+      </div>
+      <section id="detail" aria-live="polite"></section>
+      <section class="top-five" aria-labelledby="topFiveTitle">
+        <div class="top-five-title">
+          <h2 id="topFiveTitle">Top five</h2>
+          <span class="eyebrow" id="topFiveMeta"></span>
+        </div>
+        <ol id="topFiveList"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <div id="menu-overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
     <div class="overlay-header">
       <span class="overlay-title" id="overlay-title"></span>
       <button class="overlay-close" onclick="closeMenu()">✕ Close</button>
     </div>
-    <iframe id="menu-frame" src="" frameborder="0" allowfullscreen></iframe>
+    <iframe id="menu-frame" src="" frameborder="0" allowfullscreen title="Menu"></iframe>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -159,24 +536,32 @@
     // Profile tooltip toggle
     const profileBtn = document.getElementById('profileHelpBtn');
     const profileTooltip = document.getElementById('profileTooltip');
+    function closeTooltip() {
+      profileTooltip.classList.remove('visible');
+      profileBtn.setAttribute('aria-expanded', 'false');
+    }
     profileBtn.addEventListener('click', e => {
       e.stopPropagation();
-      profileTooltip.classList.toggle('visible');
+      if (profileTooltip.classList.contains('visible')) return closeTooltip();
+      const rect = profileBtn.getBoundingClientRect();
+      const width = Math.min(290, window.innerWidth - 32);
+      profileTooltip.style.top = (rect.bottom + 8) + 'px';
+      profileTooltip.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16)) + 'px';
+      profileTooltip.classList.add('visible');
+      profileBtn.setAttribute('aria-expanded', 'true');
     });
-    document.addEventListener('click', () => profileTooltip.classList.remove('visible'));
+    document.addEventListener('click', closeTooltip);
+    window.addEventListener('resize', closeTooltip);
+    document.querySelector('.controls').addEventListener('scroll', closeTooltip);
 
     const map = L.map('map').setView([48.8566, 2.3522], 12);
 
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_4qad_1_15e6672081357063faf80bbe', {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 19
-}).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_4qad_1_15e6672081357063faf80bbe', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
 
-
-
-    
- 
     function openMenu(url, name) {
       const previewUrl = url.replace('/view?usp=sharing', '/preview').replace('/view', '/preview');
       document.getElementById('overlay-title').textContent = name + ' — Menu';
@@ -188,76 +573,42 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=c
       document.getElementById('menu-frame').src = '';
     }
     document.getElementById('menu-overlay').addEventListener('click', function(e) { if (e.target === this) closeMenu(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMenu(); closeTooltip(); } });
 
-    function getColor(score) {
-      if (!score || score === '') return '#555';
-      if (score >= 15) return '#b8975a';
-      if (score >= 13) return '#9aa0a6';
-      return '#cd7f32';
+    // Score tier (scores out of 20): gold 15+, silver 13–15, bronze under 13
+    function tier(score) {
+      if (!score) return 'tbc';
+      if (score >= 15) return 'gold';
+      if (score >= 13) return 'silver';
+      return 'bronze';
     }
 
-    function makeIcon(color, score) {
-      const scoreText = score ? parseFloat(score).toFixed(1) : null;
-      const scoreHtml = scoreText
-        ? `<div class="pin-score">${scoreText}</div>`
-        : `<div class="pin-score tbc">tbc</div>`;
+    function makeIcon(score, isSelected) {
+      const scoreText = score ? parseFloat(score).toFixed(1) : 'tbc';
       return L.divIcon({
-        className: 'pin-label',
-        html: `<div class="pin-wrap"><div class="pin-dot" style="background:${color};"></div>${scoreHtml}</div>`,
-        iconSize: [40, 32], iconAnchor: [20, 7], popupAnchor: [0, -10]
+        className: `pin pin--${tier(score)}${isSelected ? ' is-selected' : ''}`,
+        html: `<span class="pin-dot">${scoreText}</span>`,
+        iconSize: [44, 44], iconAnchor: [22, 22]
       });
-    }
-
-    function bar(val) {
-      if (!val) return '<div class="popup-rating-bar-wrap"><div class="popup-rating-bar" style="width:0%"></div></div>';
-      return `<div class="popup-rating-bar-wrap"><div class="popup-rating-bar" style="width:${Math.min(100, (val/SCORE_MAX)*100).toFixed(0)}%"></div></div>`;
     }
 
     function fmt(val) { return val && val !== '' ? parseFloat(val).toFixed(2) : '—'; }
 
-    function makePopup(r, mode, modeLabel) {
-      const hasTotals = r[mode] && r[mode] !== '';
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
 
-      const ratingsHtml = hasTotals ? `
-        <div class="popup-featured">
-          <span class="popup-featured-label">${modeLabel} Score</span>
-          <span class="popup-featured-value">${fmt(r[mode])}</span>
-        </div>
-        <div class="popup-ratings">
-          <div class="popup-rating-row">
-            <span class="popup-rating-label">Atmosphere</span>
-            ${bar(r.atmosphere)}
-            <span class="popup-rating-value">${fmt(r.atmosphere)}</span>
-          </div>
-          <div class="popup-rating-row">
-            <span class="popup-rating-label">Wine</span>
-            ${bar(r.bottles)}
-            <span class="popup-rating-value">${fmt(r.bottles)}</span>
-          </div>
-          <div class="popup-rating-row">
-            <span class="popup-rating-label">Food</span>
-            ${bar(r.plate)}
-            <span class="popup-rating-value">${fmt(r.plate)}</span>
-          </div>
-        </div>` : `<p class="popup-tbc">Ratings coming soon</p>`;
-
-      const menuHtml = r.menu && r.menu.trim() !== ''
-        ? `<button class="popup-menu-btn" onclick="openMenu('${r.menu}', '${r.name.replace(/'/g, "\\'")}')">📄 View Menu</button>`
-        : `<p class="popup-no-menu">Menu not yet available</p>`;
-
-      return `<div class="popup-inner">
-        <div class="popup-season">${r.season} · ${r.month} · ${r.id}</div>
-        <div class="popup-name">${r.name}</div>
-        <div class="popup-address">${[r.address, r.postcode].filter(Boolean).join(', ')}</div>
-        <div class="popup-brigadiers">${r.brigadiers}</div>
-        <div class="popup-divider"></div>
-        ${ratingsHtml}
-        ${menuHtml}
+    function bar(label, val) {
+      const pct = val ? Math.max(0, Math.min(100, (val / SCORE_MAX) * 100)).toFixed(0) : 0;
+      return `<div class="bar-row">
+        <span class="bar-label">${label}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+        <span class="bar-value">${fmt(val)}</span>
       </div>`;
     }
 
-    // CSV parser that handles quoted fields, commas and line breaks inside quotes.
+    // CSV parser that handles quoted fields, commas and line breaks inside quotes
+    // (some names in the sheet contain commas).
     function parseCSV(text) {
       const rows = [];
       let row = [], field = '', inQuotes = false;
@@ -285,36 +636,262 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=c
         });
     }
 
-    // Fill any empty total_* column from the three ratings (the boosted one counts double).
-    function fillTotals(r) {
-      const a = parseFloat(r.atmosphere), w = parseFloat(r.bottles), f = parseFloat(r.plate);
-      if ([a, w, f].some(isNaN)) return r;
-      const fill = (key, val) => { if (!r[key]) r[key] = val.toFixed(2); };
-      fill('total_neutral', (a + w + f) / 3);
-      fill('total_food', (a + w + 2 * f) / 4);
-      fill('total_wine', (a + 2 * w + f) / 4);
-      fill('total_atmosphere', (2 * a + w + f) / 4);
-      return r;
-    }
-
+    // One season button per unique value in the "season" column
     function buildSeasonButtons() {
-      const container = document.getElementById('seasonButtons');
+      const group = document.querySelector('[data-season="All"]').parentElement;
       const seasons = [...new Set(allRestaurants.map(r => r.season).filter(Boolean))]
         .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
       seasons.forEach(season => {
         const btn = document.createElement('button');
         btn.className = 'toggle-btn';
+        btn.type = 'button';
+        btn.setAttribute('aria-pressed', 'false');
         btn.dataset.season = season;
         btn.textContent = season;
-        container.appendChild(btn);
+        group.appendChild(btn);
       });
     }
 
-    let currentMode = 'total_food';
-    let currentLabel = 'Food+';
+    let currentMode = 'overall';
+    let currentLabel = 'Overall';
     let currentSeason = 'All';
     let allRestaurants = [];
     let markers = [];
+    let visible = [];
+    let selected = null;
+    let topFiveItems = [];
+
+    const detailEl = document.getElementById('detail');
+    const topFiveList = document.getElementById('topFiveList');
+    const topFiveMeta = document.getElementById('topFiveMeta');
+    const isPhone = () => window.matchMedia('(max-width: 700px)').matches;
+
+    // Raw column value as a number, or null when blank
+    function num(v) {
+      const n = v && v.trim() !== '' ? parseFloat(v) : NaN;
+      return isNaN(n) ? null : n;
+    }
+
+    // Score for the selected button. Overall = (2 × plate + bottles + atmosphere) ÷ 4,
+    // and needs all three raw scores. The other buttons use one raw column.
+    function scoreOf(r, mode = currentMode) {
+      if (mode === 'overall') {
+        const p = num(r.plate), b = num(r.bottles), a = num(r.atmosphere);
+        return p === null || b === null || a === null ? null : (2 * p + b + a) / 4;
+      }
+      return num(r[mode]);
+    }
+
+    function hasRatings(r) {
+      return num(r.plate) !== null || num(r.bottles) !== null || num(r.atmosphere) !== null;
+    }
+
+    function renderDetail() {
+      const r = selected;
+      if (!r) {
+        detailEl.innerHTML = `<div class="detail-empty">
+          <strong>Choose a restaurant</strong>
+          Select a pin on the map, or a restaurant from the top five, to see its scores.
+        </div>`;
+        return;
+      }
+      const score = scoreOf(r);
+
+      const ratingsHtml = hasRatings(r) ? `
+        <div class="score-block peek-end">
+          <span class="eyebrow">${esc(currentLabel)} score</span>
+          <span class="score-big t-${tier(score)}">${score === null ? '—' : score.toFixed(2)}</span>
+        </div>
+        <div class="bars">
+          ${bar('Plate', r.plate)}
+          ${bar('Bottles', r.bottles)}
+          ${bar('Atmosphere', r.atmosphere)}
+        </div>` : `<p class="ratings-tbc peek-end">Ratings coming soon</p>`;
+
+      const hasMenu = r.menu && r.menu.trim() !== '';
+      const menuHtml = hasMenu
+        ? `<button class="menu-btn" type="button" id="menuBtn">View menu</button>`
+        : `<p class="no-menu">Menu not yet available</p>`;
+
+      const address = [r.address, r.postcode].filter(Boolean).join(', ');
+      detailEl.innerHTML = `
+        <div class="eyebrow">${[r.season, r.month, r.id].filter(Boolean).map(esc).join(' · ')}</div>
+        <h2 class="detail-name">${esc(r.name)}</h2>
+        ${address ? `<p class="detail-address">${esc(address)}</p>` : ''}
+        ${r.brigadiers ? `<p class="detail-brigadiers">${esc(r.brigadiers)}</p>` : ''}
+        ${ratingsHtml}
+        ${menuHtml}`;
+
+      if (hasMenu) document.getElementById('menuBtn').addEventListener('click', () => openMenu(r.menu, r.name));
+      updatePeek();
+    }
+
+    function renderTopFive() {
+      topFiveMeta.textContent = `${currentLabel} · ${currentSeason === 'All' ? 'All seasons' : currentSeason}`;
+      const ranked = visible
+        .map(r => ({ r, s: scoreOf(r) }))
+        .filter(x => x.s !== null && !isNaN(x.s))
+        .sort((a, b) => b.s - a.s)
+        .slice(0, 5);
+
+      topFiveList.innerHTML = '';
+      topFiveItems = [];
+      if (!ranked.length) {
+        topFiveList.innerHTML = '<li class="top-empty">No scored restaurants yet.</li>';
+        return;
+      }
+      ranked.forEach(({ r, s }, i) => {
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'top-item';
+        btn.setAttribute('aria-current', String(r === selected));
+        btn.innerHTML = `
+          <span class="top-rank">${i + 1}</span>
+          <span class="top-name">${esc(r.name)}<span class="top-meta">${[r.season, r.month].filter(Boolean).map(esc).join(' · ')}</span></span>
+          <span class="top-score t-${tier(s)}">${s.toFixed(1)}</span>`;
+        btn.addEventListener('click', () => {
+          selectRestaurant(r, !isPhone());
+          if (isPhone()) { setSheet('peek'); showPinAboveSheet(r); }
+        });
+        li.appendChild(btn);
+        topFiveList.appendChild(li);
+        topFiveItems.push({ r, btn });
+      });
+    }
+
+    function selectRestaurant(r, pan) {
+      selected = r;
+      markers.forEach(({ marker, data }) => {
+        const on = data === r;
+        const el = marker.getElement();
+        if (el) el.classList.toggle('is-selected', on);
+        marker.setZIndexOffset(on ? 1000 : 0);
+      });
+      topFiveItems.forEach(({ r: item, btn }) => btn.setAttribute('aria-current', String(item === r)));
+      if (pan && r && r.lat && r.lng) map.panTo([parseFloat(r.lat), parseFloat(r.lng)]);
+      renderDetail();
+    }
+
+    // Tapping a pin: desktop fills the side panel; phone also slides the sheet up to "peek"
+    function onPinChosen(r) {
+      selectRestaurant(r);
+      if (isPhone()) { setSheet('peek'); showPinAboveSheet(r); }
+    }
+
+    // ---------- Phone bottom sheet ----------
+    const panel = document.getElementById('panel');
+    let sheetState = 'closed';   // closed | peek | open
+    let drag = null;
+    let justDragged = false;
+
+    function setSheet(state) {
+      sheetState = state;
+      panel.classList.toggle('sheet-peek', state === 'peek');
+      panel.classList.toggle('sheet-open', state === 'open');
+      if (state !== 'open') panel.scrollTop = 0;
+      document.getElementById('sheetGrab').setAttribute('aria-label', state === 'open' ? 'Show less' : 'Show more details');
+    }
+
+    function closeSheet() {
+      setSheet('closed');
+      selectRestaurant(null);
+    }
+
+    // The peek shows everything down to the big score
+    function updatePeek() {
+      const end = detailEl.querySelector('.peek-end');
+      if (!end) return;
+      const bottom = end.getBoundingClientRect().bottom - panel.getBoundingClientRect().top + panel.scrollTop;
+      panel.style.setProperty('--peek', Math.ceil(bottom + 4) + 'px');
+    }
+
+    function peekHeight() {
+      return parseFloat(getComputedStyle(panel).getPropertyValue('--peek')) || 220;
+    }
+
+    // Nudge the map so the chosen pin is not hidden behind the peeking sheet
+    function showPinAboveSheet(r) {
+      if (!r || !r.lat || !r.lng) return;
+      const size = map.getSize();
+      const visibleH = size.y - peekHeight();
+      const pt = map.latLngToContainerPoint([parseFloat(r.lat), parseFloat(r.lng)]);
+      if (pt.y > visibleH - 40 || pt.y < 40 || pt.x < 30 || pt.x > size.x - 30) {
+        map.panBy([pt.x - size.x / 2, pt.y - visibleH / 2]);
+      }
+    }
+
+    function sheetOffset() {
+      const h = panel.offsetHeight;
+      return sheetState === 'open' ? 0 : sheetState === 'peek' ? h - peekHeight() : h;
+    }
+
+    panel.addEventListener('pointerdown', e => {
+      if (!isPhone() || sheetState === 'closed' || e.target.closest('.sheet-close')) return;
+      if (sheetState === 'open' && !e.target.closest('.sheet-bar')) return; // let the content scroll
+      drag = { id: e.pointerId, y0: e.clientY, t0: sheetOffset(), moved: false, dy: 0 };
+    });
+    panel.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      drag.dy = e.clientY - drag.y0;
+      if (!drag.moved && Math.abs(drag.dy) > 6) {
+        drag.moved = true;
+        try { panel.setPointerCapture(e.pointerId); } catch (_) {}
+        panel.classList.add('dragging');
+      }
+      if (drag.moved) {
+        const t = Math.max(0, Math.min(panel.offsetHeight, drag.t0 + drag.dy));
+        panel.style.transform = `translateY(${t}px)`;
+      }
+    });
+    function endDrag(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      const { moved, dy } = drag;
+      drag = null;
+      if (!moved) return;
+      justDragged = true;
+      setTimeout(() => { justDragged = false; }, 0);
+      panel.classList.remove('dragging');
+      panel.style.transform = '';
+      if (dy < -50) setSheet('open');
+      else if (dy > 50) sheetState === 'open' ? setSheet('peek') : closeSheet();
+      else setSheet(sheetState);
+    }
+    panel.addEventListener('pointerup', endDrag);
+    panel.addEventListener('pointercancel', endDrag);
+
+    document.getElementById('sheetGrab').addEventListener('click', () => {
+      if (justDragged) return;
+      setSheet(sheetState === 'open' ? 'peek' : 'open');
+    });
+    document.getElementById('sheetClose').addEventListener('click', closeSheet);
+    // Tapping the peeking card (not a button) opens it fully
+    panel.addEventListener('click', e => {
+      if (justDragged || !isPhone() || sheetState !== 'peek' || e.target.closest('button')) return;
+      setSheet('open');
+    });
+    // Tapping empty map closes the sheet on phones
+    map.on('click', () => { if (isPhone() && sheetState !== 'closed') closeSheet(); });
+    window.addEventListener('resize', () => { if (!isPhone()) setSheet('closed'); else updatePeek(); });
+
+    // ---------- Phone header picker ----------
+    const header = document.querySelector('.site-header');
+    const pickerBtn = document.getElementById('pickerBtn');
+    function setPicker(open) {
+      header.classList.toggle('picker-open', open);
+      pickerBtn.setAttribute('aria-expanded', String(open));
+    }
+    pickerBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      setPicker(!header.classList.contains('picker-open'));
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#mapControls') && !e.target.closest('#pickerBtn')) setPicker(false);
+    });
+    map.on('click movestart', () => setPicker(false));
+    function updatePicker() {
+      document.getElementById('pickerLabel').textContent = `${currentLabel} · ${currentSeason}`;
+    }
 
     function renderMarkers() {
       markers.forEach(({ marker }) => map.removeLayer(marker));
@@ -322,27 +899,54 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=c
       const filtered = currentSeason === 'All'
         ? allRestaurants
         : allRestaurants.filter(r => r.season === currentSeason);
+      visible = filtered;
+      if (selected && !filtered.includes(selected)) selected = null;
       filtered.forEach(r => {
         if (!r.lat || !r.lng) return;
-        const score = r[currentMode] && r[currentMode] !== '' ? parseFloat(r[currentMode]) : null;
+        const score = scoreOf(r);
+        const isSel = r === selected;
         const marker = L.marker([parseFloat(r.lat), parseFloat(r.lng)], {
-          icon: makeIcon(getColor(score), score)
-        }).addTo(map).bindPopup(makePopup(r, currentMode, currentLabel), { maxWidth: 280 });
+          icon: makeIcon(score, isSel),
+          title: r.name,
+          riseOnHover: true,
+          zIndexOffset: isSel ? 1000 : 0
+        }).addTo(map);
+        marker.on('click', () => onPinChosen(r));
+        const el = marker.getElement();
+        if (el) {
+          el.setAttribute('role', 'button');
+          el.setAttribute('aria-label', `${r.name}, ${score ? score.toFixed(1) : 'score to be confirmed'}`);
+          el.addEventListener('keydown', e => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPinChosen(r); }
+          });
+        }
         markers.push({ marker, data: r });
       });
+      renderDetail();
+      renderTopFive();
+      updatePicker();
+      if (!selected && sheetState !== 'closed') setSheet('closed');
     }
+
+    function setActive(selector, btn) {
+      document.querySelectorAll(selector).forEach(b => {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+    }
+
+    renderDetail();
 
     fetch(SHEET_URL)
       .then(res => res.text())
       .then(text => {
-        allRestaurants = parseCSV(text).map(fillTotals);
+        allRestaurants = parseCSV(text);
         buildSeasonButtons();
         renderMarkers();
 
         document.querySelectorAll('[data-mode]').forEach(btn => {
           btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            setActive('[data-mode]', btn);
             currentMode = btn.dataset.mode;
             currentLabel = btn.dataset.label;
             renderMarkers();
@@ -351,8 +955,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=c
 
         document.querySelectorAll('[data-season]').forEach(btn => {
           btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-season]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            setActive('[data-season]', btn);
             currentSeason = btn.dataset.season;
             renderMarkers();
           });
