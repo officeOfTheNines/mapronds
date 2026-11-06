@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>The Nines — Restaurant Map</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/favicon-180.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #1a1a18;
+      --cream: #f5f0e8;
+      --gold: #b8975a;
+      --gold-light: #d4b483;
+      --muted: #6b6458;
+    }
+    body { font-family: 'Montserrat', sans-serif; background: var(--ink); color: var(--cream); height: 100vh; display: flex; flex-direction: column; }
+
+    .controls { background: var(--ink); padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; border-bottom: 1px solid rgba(184,151,90,0.2); }
+    .controls-label { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; white-space: nowrap; }
+    .toggle-btn { font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.5rem 1.1rem; border: 1px solid rgba(184,151,90,0.3); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .toggle-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+    .toggle-btn.active { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+    .season-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .sep { width: 1px; height: 24px; background: rgba(184,151,90,0.2); margin: 0 0.25rem; flex-shrink: 0; }
+    .profile-wrap { position: relative; display: flex; align-items: center; }
+    .controls-label-btn { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-right: 0.25rem; white-space: nowrap; cursor: pointer; border-bottom: 1px dashed rgba(184,151,90,0.4); transition: color 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Montserrat', sans-serif; padding: 0; }
+    .controls-label-btn:hover { color: var(--gold-light); }
+    .profile-tooltip { display: none; position: absolute; top: calc(100% + 10px); left: 0; background: #1e1e1c; border: 1px solid rgba(184,151,90,0.3); padding: 0.9rem 1rem; width: 270px; z-index: 9000; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    .profile-tooltip.visible { display: block; }
+    .profile-tooltip::before { content: ''; position: absolute; top: -6px; left: 16px; width: 10px; height: 10px; background: #1e1e1c; border-left: 1px solid rgba(184,151,90,0.3); border-top: 1px solid rgba(184,151,90,0.3); transform: rotate(45deg); }
+    .tooltip-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.67rem; line-height: 1.5; }
+    .tooltip-row:last-child { margin-bottom: 0; }
+    .tooltip-key { color: var(--gold-light); font-weight: 500; white-space: nowrap; min-width: 85px; }
+    .tooltip-val { color: var(--cream); opacity: 0.6; }
+
+    .legend { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    #map { flex: 1; }
+
+    .pin-label { background: transparent; border: none; box-shadow: none; }
+    .pin-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 0 6px rgba(0,0,0,0.5); }
+    .pin-score { font-family: 'Montserrat', sans-serif; font-size: 9px; font-weight: 500; color: var(--cream); background: rgba(26,26,24,0.85); padding: 1px 3px; border-radius: 2px; white-space: nowrap; }
+    .pin-score.tbc { color: var(--muted); font-style: italic; }
+
+    .leaflet-popup-content-wrapper { background: #1e1e1c; border: 1px solid rgba(184,151,90,0.3); border-radius: 2px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); padding: 0; }
+    .leaflet-popup-content { margin: 0; min-width: 240px; }
+    .leaflet-popup-tip { background: #1e1e1c; }
+    .leaflet-popup-close-button { color: var(--muted) !important; top: 8px !important; right: 8px !important; }
+
+    .popup-inner { padding: 1rem 1.1rem; }
+    .popup-season { font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+    .popup-name { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 600; color: var(--cream); margin-bottom: 0.1rem; line-height: 1.2; }
+    .popup-address { font-size: 0.6rem; color: var(--muted); margin-bottom: 0.15rem; }
+    .popup-brigadiers { font-size: 0.65rem; color: var(--gold-light); margin-bottom: 0.75rem; font-style: italic; }
+    .popup-divider { height: 1px; background: rgba(184,151,90,0.2); margin-bottom: 0.75rem; }
+
+    /* Featured total score — top of ratings */
+    .popup-featured {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid rgba(184,151,90,0.25);
+      background: rgba(184,151,90,0.06);
+    }
+    .popup-featured-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+    }
+    .popup-featured-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .popup-ratings { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
+    .popup-rating-row { display: flex; align-items: center; font-size: 0.65rem; }
+    .popup-rating-label { letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); min-width: 70px; }
+    .popup-rating-bar-wrap { flex: 1; height: 3px; background: rgba(255,255,255,0.07); margin: 0 0.6rem; border-radius: 2px; }
+    .popup-rating-bar { height: 100%; background: var(--gold); border-radius: 2px; }
+    .popup-rating-value { font-weight: 500; color: var(--cream); min-width: 32px; text-align: right; }
+
+    .popup-menu-btn { display: block; text-align: center; margin-top: 0.5rem; padding: 0.5rem; border: 1px solid rgba(184,151,90,0.3); color: var(--gold-light); font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; text-decoration: none; cursor: pointer; background: transparent; width: 100%; transition: background 0.2s; font-family: 'Montserrat', sans-serif; }
+    .popup-menu-btn:hover { background: rgba(184,151,90,0.15); }
+    .popup-no-menu { color: var(--muted); font-size: 0.6rem; text-align: center; margin-top: 0.5rem; font-style: italic; }
+    .popup-tbc { color: var(--muted); font-size: 0.75rem; text-align: center; padding: 0.5rem 0; font-style: italic; }
+
+    /* Menu overlay */
+    #menu-overlay { display: none; position: fixed; inset: 0; background: rgba(10,10,8,0.92); z-index: 9999; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; }
+    #menu-overlay.visible { display: flex; }
+    .overlay-header { width: 100%; max-width: 860px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .overlay-title { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; color: var(--cream); opacity: 0.8; }
+    .overlay-close { background: transparent; border: 1px solid rgba(184,151,90,0.3); color: var(--gold-light); font-family: 'Montserrat', sans-serif; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.4rem 1rem; cursor: pointer; transition: background 0.2s; }
+    .overlay-close:hover { background: rgba(184,151,90,0.15); }
+    #menu-frame { width: 100%; max-width: 860px; flex: 1; max-height: 80vh; border: 1px solid rgba(184,151,90,0.2); background: #fff; }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <div class="profile-wrap">
+      <button class="controls-label-btn" id="profileHelpBtn">Profile ⓘ</button>
+      <div class="profile-tooltip" id="profileTooltip">
+        <div class="tooltip-row"><span class="tooltip-key">🍴 Food+</span><span class="tooltip-val">Gives double weight to food in the average rating</span></div>
+        <div class="tooltip-row"><span class="tooltip-key">🍷 Wine+</span><span class="tooltip-val">Gives double weight to wine in the average rating</span></div>
+        <div class="tooltip-row"><span class="tooltip-key">🎭 Atmo+</span><span class="tooltip-val">Gives double weight to atmosphere in the average rating</span></div>
+        <div class="tooltip-row"><span class="tooltip-key">⚖️ Neutral</span><span class="tooltip-val">Treats food, wine and atmosphere equally</span></div>
+      </div>
+    </div>
+    <button class="toggle-btn active" data-mode="total_food" data-label="Food+">🍴 Food+</button>
+    <button class="toggle-btn" data-mode="total_wine" data-label="Wine+">🍷 Wine+</button>
+    <button class="toggle-btn" data-mode="total_atmosphere" data-label="Atmosphere+">🎭 Atmo+</button>
+    <button class="toggle-btn" data-mode="total_neutral" data-label="Neutral">⚖️ Neutral</button>
+    <div class="sep"></div>
+    <span class="controls-label">Season</span>
+    <div class="season-buttons" id="seasonButtons">
+      <button class="toggle-btn active" data-season="All">All</button>
+      <!-- One button per unique value in the sheet's "season" column, added on load -->
+    </div>
+    <div class="sep"></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#b8975a;"></div> ≥ 15</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#9aa0a6;"></div> 13–15</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#cd7f32;"></div> &lt; 13</div>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="menu-overlay">
+    <div class="overlay-header">
+      <span class="overlay-title" id="overlay-title"></span>
+      <button class="overlay-close" onclick="closeMenu()">✕ Close</button>
+    </div>
+    <iframe id="menu-frame" src="" frameborder="0" allowfullscreen></iframe>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script>
+    // RESTOS_RONDS sheet. The sheet must be published to the web (or shared "anyone with the link").
+    // If you use File > Share > Publish to web > CSV, you can paste that .../pub?output=csv link here instead.
+    const SHEET_URL = 'https://docs.google.com/spreadsheets/d/10L49D9DgKbvXbrkDO4yu8664x74O7RxYxf6_XrUM9pI/gviz/tq?tqx=out:csv&sheet=Sheet1';
+
+    // Scores in this club are out of 20.
+    const SCORE_MAX = 20;
+
+    // Profile tooltip toggle
+    const profileBtn = document.getElementById('profileHelpBtn');
+    const profileTooltip = document.getElementById('profileTooltip');
+    profileBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      profileTooltip.classList.toggle('visible');
+    });
+    document.addEventListener('click', () => profileTooltip.classList.remove('visible'));
+
+    const map = L.map('map').setView([48.8566, 2.3522], 12);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_4qad_1_15e6672081357063faf80bbe', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+
+
+    
+ 
+    function openMenu(url, name) {
+      const previewUrl = url.replace('/view?usp=sharing', '/preview').replace('/view', '/preview');
+      document.getElementById('overlay-title').textContent = name + ' — Menu';
+      document.getElementById('menu-frame').src = previewUrl;
+      document.getElementById('menu-overlay').classList.add('visible');
+    }
+    function closeMenu() {
+      document.getElementById('menu-overlay').classList.remove('visible');
+      document.getElementById('menu-frame').src = '';
+    }
+    document.getElementById('menu-overlay').addEventListener('click', function(e) { if (e.target === this) closeMenu(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+    function getColor(score) {
+      if (!score || score === '') return '#555';
+      if (score >= 15) return '#b8975a';
+      if (score >= 13) return '#9aa0a6';
+      return '#cd7f32';
+    }
+
+    function makeIcon(color, score) {
+      const scoreText = score ? parseFloat(score).toFixed(1) : null;
+      const scoreHtml = scoreText
+        ? `<div class="pin-score">${scoreText}</div>`
+        : `<div class="pin-score tbc">tbc</div>`;
+      return L.divIcon({
+        className: 'pin-label',
+        html: `<div class="pin-wrap"><div class="pin-dot" style="background:${color};"></div>${scoreHtml}</div>`,
+        iconSize: [40, 32], iconAnchor: [20, 7], popupAnchor: [0, -10]
+      });
+    }
+
+    function bar(val) {
+      if (!val) return '<div class="popup-rating-bar-wrap"><div class="popup-rating-bar" style="width:0%"></div></div>';
+      return `<div class="popup-rating-bar-wrap"><div class="popup-rating-bar" style="width:${Math.min(100, (val/SCORE_MAX)*100).toFixed(0)}%"></div></div>`;
+    }
+
+    function fmt(val) { return val && val !== '' ? parseFloat(val).toFixed(2) : '—'; }
+
+    function makePopup(r, mode, modeLabel) {
+      const hasTotals = r[mode] && r[mode] !== '';
+
+      const ratingsHtml = hasTotals ? `
+        <div class="popup-featured">
+          <span class="popup-featured-label">${modeLabel} Score</span>
+          <span class="popup-featured-value">${fmt(r[mode])}</span>
+        </div>
+        <div class="popup-ratings">
+          <div class="popup-rating-row">
+            <span class="popup-rating-label">Atmosphere</span>
+            ${bar(r.atmosphere)}
+            <span class="popup-rating-value">${fmt(r.atmosphere)}</span>
+          </div>
+          <div class="popup-rating-row">
+            <span class="popup-rating-label">Wine</span>
+            ${bar(r.bottles)}
+            <span class="popup-rating-value">${fmt(r.bottles)}</span>
+          </div>
+          <div class="popup-rating-row">
+            <span class="popup-rating-label">Food</span>
+            ${bar(r.plate)}
+            <span class="popup-rating-value">${fmt(r.plate)}</span>
+          </div>
+        </div>` : `<p class="popup-tbc">Ratings coming soon</p>`;
+
+      const menuHtml = r.menu && r.menu.trim() !== ''
+        ? `<button class="popup-menu-btn" onclick="openMenu('${r.menu}', '${r.name.replace(/'/g, "\\'")}')">📄 View Menu</button>`
+        : `<p class="popup-no-menu">Menu not yet available</p>`;
+
+      return `<div class="popup-inner">
+        <div class="popup-season">${r.season} · ${r.month} · ${r.id}</div>
+        <div class="popup-name">${r.name}</div>
+        <div class="popup-address">${[r.address, r.postcode].filter(Boolean).join(', ')}</div>
+        <div class="popup-brigadiers">${r.brigadiers}</div>
+        <div class="popup-divider"></div>
+        ${ratingsHtml}
+        ${menuHtml}
+      </div>`;
+    }
+
+    // CSV parser that handles quoted fields, commas and line breaks inside quotes.
+    function parseCSV(text) {
+      const rows = [];
+      let row = [], field = '', inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (inQuotes) {
+          if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+          else if (c === '"') inQuotes = false;
+          else field += c;
+        } else if (c === '"') inQuotes = true;
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(field); rows.push(row); row = []; field = '';
+        } else field += c;
+      }
+      if (field !== '' || row.length) { row.push(field); rows.push(row); }
+      const headers = rows[0].map(h => h.trim());
+      return rows.slice(1)
+        .filter(vals => vals.some(v => v.trim() !== ''))
+        .map(vals => {
+          const obj = {};
+          headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
+          return obj;
+        });
+    }
+
+    // Fill any empty total_* column from the three ratings (the boosted one counts double).
+    function fillTotals(r) {
+      const a = parseFloat(r.atmosphere), w = parseFloat(r.bottles), f = parseFloat(r.plate);
+      if ([a, w, f].some(isNaN)) return r;
+      const fill = (key, val) => { if (!r[key]) r[key] = val.toFixed(2); };
+      fill('total_neutral', (a + w + f) / 3);
+      fill('total_food', (a + w + 2 * f) / 4);
+      fill('total_wine', (a + 2 * w + f) / 4);
+      fill('total_atmosphere', (2 * a + w + f) / 4);
+      return r;
+    }
+
+    function buildSeasonButtons() {
+      const container = document.getElementById('seasonButtons');
+      const seasons = [...new Set(allRestaurants.map(r => r.season).filter(Boolean))]
+        .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
+      seasons.forEach(season => {
+        const btn = document.createElement('button');
+        btn.className = 'toggle-btn';
+        btn.dataset.season = season;
+        btn.textContent = season;
+        container.appendChild(btn);
+      });
+    }
+
+    let currentMode = 'total_food';
+    let currentLabel = 'Food+';
+    let currentSeason = 'All';
+    let allRestaurants = [];
+    let markers = [];
+
+    function renderMarkers() {
+      markers.forEach(({ marker }) => map.removeLayer(marker));
+      markers = [];
+      const filtered = currentSeason === 'All'
+        ? allRestaurants
+        : allRestaurants.filter(r => r.season === currentSeason);
+      filtered.forEach(r => {
+        if (!r.lat || !r.lng) return;
+        const score = r[currentMode] && r[currentMode] !== '' ? parseFloat(r[currentMode]) : null;
+        const marker = L.marker([parseFloat(r.lat), parseFloat(r.lng)], {
+          icon: makeIcon(getColor(score), score)
+        }).addTo(map).bindPopup(makePopup(r, currentMode, currentLabel), { maxWidth: 280 });
+        markers.push({ marker, data: r });
+      });
+    }
+
+    fetch(SHEET_URL)
+      .then(res => res.text())
+      .then(text => {
+        allRestaurants = parseCSV(text).map(fillTotals);
+        buildSeasonButtons();
+        renderMarkers();
+
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMode = btn.dataset.mode;
+            currentLabel = btn.dataset.label;
+            renderMarkers();
+          });
+        });
+
+        document.querySelectorAll('[data-season]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-season]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentSeason = btn.dataset.season;
+            renderMarkers();
+          });
+        });
+      })
+      .catch(err => console.error('Failed to load sheet:', err));
+
+  </script>
+</body>
+</html>
