@@ -528,6 +528,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <script>
     // RESTOS_RONDS sheet, published to the web as CSV.
+    // Which club this map belongs to (same ids as the members site: 1 = The Nines, 2 = Les Ronds).
+    // The map is public for now; later, members of this club may see extra detail.
+    const CLUB_ID = 2; // Les Ronds
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZNyU22d3Mz3FzPw_cfWxrkHcAzVmZOs7ZtPgUcR5iFAp5u5-B5CywRdWwLt2tPcC1KvHo5sFqy1Ka/pub?gid=0&single=true&output=csv';
 
     // Scores in this club are out of 20.
@@ -632,6 +635,8 @@
         .map(vals => {
           const obj = {};
           headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
+          // every restaurant carries its club (a club_id column in the sheet wins, if one is added)
+          obj.club_id = Number(obj.club_id) || CLUB_ID;
           return obj;
         });
     }
