@@ -261,6 +261,23 @@
       transition: border-color 0.15s, background-color 0.15s;
     }
     .menu-btn:hover { border-color: var(--brass); background: var(--brass); }
+    /* Directions next to View menu, Copy address under the address (map-tools.js) */
+    .detail-actions { display: flex; gap: 8px; margin-top: 22px; }
+    .detail-actions .menu-btn { flex: 1 1 0; margin-top: 0; text-decoration: none; }
+    .copy-address { display: inline-flex; align-items: center; min-height: 36px; padding: 0; border: 0; background: none;
+      color: var(--brass); font: inherit; font-size: 0.8125rem; text-decoration: underline; cursor: pointer; }
+    .copy-address:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+    /* Find me: a round button under the zoom buttons, a short message when the position is not available */
+    .locate-control .locate-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0;
+      border: 0; background: var(--bg); color: var(--ink); cursor: pointer; }
+    .locate-control .locate-button:hover { background: var(--map); color: var(--brass); }
+    .locate-control .locate-button:focus-visible { outline: 2px solid var(--brass); outline-offset: -3px; }
+    .locate-control .locate-button[aria-busy="true"] svg { animation: locate-pulse 1s ease-in-out infinite; }
+    @keyframes locate-pulse { 50% { opacity: 0.35; } }
+    @media (prefers-reduced-motion: reduce) { .locate-control .locate-button[aria-busy="true"] svg { animation: none; } }
+    .locate-note { position: absolute; z-index: 800; left: 50%; transform: translateX(-50%); top: 12px; width: max-content; max-width: calc(100% - 120px);
+      padding: 10px 14px; border-radius: 8px; background: rgba(11, 34, 23, 0.96); border: 1px solid var(--brass); color: var(--ink);
+      font-size: 0.875rem; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
 
     /* Phone-only pieces (hidden on bigger screens) */
     .picker-btn, .sheet-bar { display: none; }
@@ -526,6 +543,8 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <!-- Find me, Directions and Copy address: the same file as on the members site (js/map-tools.js) -->
+  <script src="map-tools.js"></script>
   <script>
     // RESTOS_RONDS sheet, published to the web as CSV.
     const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRZNyU22d3Mz3FzPw_cfWxrkHcAzVmZOs7ZtPgUcR5iFAp5u5-B5CywRdWwLt2tPcC1KvHo5sFqy1Ka/pub?gid=0&single=true&output=csv';
@@ -555,6 +574,9 @@
     document.querySelector('.controls').addEventListener('scroll', closeTooltip);
 
     const map = L.map('map').setView([48.8566, 2.3522], 12);
+    // "Find me": asks for the position only when tapped; never stored or sent. Labels in the club's language.
+    const MAP_LANG = 'fr';
+    if (window.NinesMapTools) NinesMapTools.addLocate(map, { lang: MAP_LANG, position: 'topleft' });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_4qad_1_15e6672081357063faf80bbe', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
@@ -723,6 +745,23 @@
         ${menuHtml}`;
 
       if (hasMenu) document.getElementById('menuBtn').addEventListener('click', () => openMenu(r.menu, r.name));
+
+      // Directions (Google Maps, by public transport, from where the person is) next to the menu button,
+      // and "Copy address" under the address
+      if (window.NinesMapTools) {
+        const addressEl = detailEl.querySelector('.detail-address');
+        const go = NinesMapTools.actions({ name: r.name, address: r.address, postcode: r.postcode, lat: parseFloat(r.lat), lng: parseFloat(r.lng) },
+          MAP_LANG, { linkClass: 'menu-btn directions-btn', copyClass: 'copy-address', selectNode: addressEl });
+        if (addressEl) addressEl.insertAdjacentElement('afterend', go.copy);
+        const row = document.createElement('div');
+        row.className = 'detail-actions';
+        row.appendChild(go.directions);
+        const menuBtn = document.getElementById('menuBtn');
+        const noMenu = detailEl.querySelector('.no-menu');
+        if (menuBtn) { menuBtn.replaceWith(row); row.appendChild(menuBtn); }
+        else if (noMenu) noMenu.insertAdjacentElement('beforebegin', row);
+        else detailEl.appendChild(row);
+      }
       updatePeek();
     }
 
